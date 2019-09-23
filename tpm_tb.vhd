@@ -26,10 +26,10 @@ architecture tb of tpm_tb is
         rst_i : in std_logic; -- reset sincrono ativo em alto
         -- Interface de entrada do usuario
         op_i : in std_logic_vector(7 downto 0); -- entrada da operacao desejada
-        data_i : in std_logic_vector(7 downto 0); -- entrada de dados do componente
+        data_i : in std_logic_vector(31 downto 0); -- entrada de dados do componente
         data_ok_i : in std_logic; -- quando data_ok_i = '1', a operacao ou o valor de dados e considerado valido e executado
         -- Interface de saida para o usuario
-        data_o : out std_logic_vector(7 downto 0); -- saida de dados do component
+        data_o : out std_logic_vector(31 downto 0); -- saida de dados do component
         data_valid_o : out std_logic; -- quando data_valid_o = '1', o dado em data_o esta estavel
         busy_o : out std_logic -- quando busy_o = '1',  componente esta realizando uma tarefa
     );
@@ -38,10 +38,10 @@ architecture tb of tpm_tb is
     signal clk, rst : std_logic;
 
     signal op : std_logic_vector(7 downto 0);
-    signal data_in : std_logic_vector(7 downto 0);
+    signal data_in : std_logic_vector(31 downto 0);
     signal data_ok : std_logic;
 
-    signal data_out : std_logic_vector(7 downto 0);
+    signal data_out : std_logic_vector(31 downto 0);
     signal data_valid : std_logic;
     signal busy : std_logic;
 
@@ -95,7 +95,7 @@ begin
 
         -- carrega a semente
         --data_in <= "00110001"; -- resultado da 1
-        data_in <= "01001101"; -- resultado da -1
+        data_in <= (31 downto 8 => '0') & "01001101"; -- resultado da -1
         data_ok <= '1';
         wait for clk_period;
 
@@ -124,84 +124,84 @@ begin
         data_ok <= '0';
         wait for clk_period*4;
 
-        data_in <= "00000001";
+        data_in <= (31 downto 8 => '0') & "00000001";
         data_ok <= '1';
         wait for clk_period;
 
         data_ok <= '0';
         wait for clk_period*4;
 
-        data_in <= "11111111";
+        data_in <= (31 downto 8 => '0') & "11111111";
         data_ok <= '1';
         wait for clk_period;
 
         data_ok <= '0';
         wait for clk_period*4;
 
-        data_in <= "00000001";
+        data_in <= (31 downto 8 => '0') & "00000001";
         data_ok <= '1';
         wait for clk_period;
 
         data_ok <= '0';
         wait for clk_period*4;
 
-        data_in <= "00000001";
+        data_in <= (31 downto 8 => '0') & "00000001";
         data_ok <= '1';
         wait for clk_period;
 
         data_ok <= '0';
         wait for clk_period*4;
 
-        data_in <= "11111111";
+        data_in <= (31 downto 8 => '0') & "11111111";
         data_ok <= '1';
         wait for clk_period;
 
         data_ok <= '0';
         wait for clk_period*4;
 
-        data_in <= "00000001";
+        data_in <= (31 downto 8 => '0') & "00000001";
         data_ok <= '1';
         wait for clk_period;
 
         data_ok <= '0';
         wait for clk_period*4;
 
-        data_in <= "11111111";
+        data_in <= (31 downto 8 => '0') & "11111111";
         data_ok <= '1';
         wait for clk_period;
 
         data_ok <= '0';
         wait for clk_period*4;
 
-        data_in <= "00000001";
+        data_in <= (31 downto 8 => '0') & "00000001";
         data_ok <= '1';
         wait for clk_period;
 
         data_ok <= '0';
         wait for clk_period*4;
 
-        data_in <= "11111111";
+        data_in <= (31 downto 8 => '0') & "11111111";
         data_ok <= '1';
         wait for clk_period;
 
         data_ok <= '0';
         wait for clk_period*4;
 
-        data_in <= "00000001";
+        data_in <= (31 downto 8 => '0') & "00000001";
         data_ok <= '1';
         wait for clk_period;
 
         data_ok <= '0';
         wait for clk_period*4;
 
-        data_in <= "11111111";
+        data_in <= (31 downto 8 => '0') & "11111111";
         data_ok <= '1';
         wait for clk_period;
 
         data_ok <= '0';
         wait for clk_period*4;
 
-        data_in <= "00000001";
+        data_in <= (31 downto 8 => '0') & "00000001";
         data_ok <= '1';
         wait for clk_period;
 
@@ -259,8 +259,8 @@ begin
         wait for clk_period*4;
 
         -- carrega o y de bob
-        --data_in <= "00000001"; -- resultado da 1
-        data_in <= "11111111"; -- resultado da -1
+        --data_in <= (31 downto 8 => '0') & "00000001"; -- resultado da 1
+        data_in <= (31 downto 8 => '0') & "11111111"; -- resultado da -1
         data_ok <= '1';
 
         wait for clk_period;
