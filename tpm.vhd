@@ -22,10 +22,10 @@ entity tpm is generic(
     rst_i : in std_logic; -- reset assincrono ativo em alto
     -- Interface de entrada do usuario
     op_i : in std_logic_vector(7 downto 0); -- entrada da operacao desejada
-    data_i : in std_logic_vector(7 downto 0); -- entrada de dados do componente
+    data_i : in std_logic_vector(31 downto 0); -- entrada de dados do componente
     data_ok_i : in std_logic; -- quando data_ok_i = '1', a operacao ou o valor de dados e considerado valido e executado
     -- Interface de saida para o usuario
-    data_o : out std_logic_vector(7 downto 0); -- saida de dados do component
+    data_o : out std_logic_vector(31 downto 0); -- saida de dados do component
     data_valid_o : out std_logic; -- quando data_valid_o = '1', o dado em data_o esta estavel
     busy_o : out std_logic -- quando busy_o = '1',  componente esta realizando uma tarefa
 );
@@ -105,7 +105,7 @@ architecture behavior of tpm is
     
     -- sinais para serem utilizados no gerador de numeros aleatorios
     signal load_seed_for_lfsr : std_logic;
-    signal seed_for_lfsr : std_logic_vector(7 downto 0);
+    signal seed_for_lfsr : std_logic_vector(31 downto 0);
     signal enable_for_lfsr : std_logic;
     signal lfsr_random_number : std_logic_vector(7 downto 0);
     
@@ -261,7 +261,7 @@ begin
                 end loop;
         elsif(rising_edge(clk_i)) then
             if((enable_load_x = '1') and (data_ok_i = '1')) then
-                tpm_x(counter_i, counter_j) <= signed(data_i);
+                tpm_x(counter_i, counter_j) <= signed(data_i(7 downto 0));
             end if;
         end if;
     end process;
@@ -311,7 +311,7 @@ begin
             tpm_y_bob <= (others => '0');
         elsif(rising_edge(clk_i)) then
             if((data_ok_i = '1') and (enable_load_y_bob = '1')) then
-                tpm_y_bob <= signed(data_i);
+                tpm_y_bob <= signed(data_i(7 downto 0));
             end if;
         end if;
     end process;
@@ -323,9 +323,9 @@ begin
                 data_o <= (others => '0');
         elsif(rising_edge(clk_i)) then
             if((enable_exit_w = '1') and (data_ok_i = '1')) then
-                data_o <= std_logic_vector(tpm_w(counter_i, counter_j));
+                data_o <= (31 downto tpm_w(counter_i, counter_j)'length => '0') & std_logic_vector(tpm_w(counter_i, counter_j));
             elsif(enable_exit_y = '1') then
-                data_o <= std_logic_vector(tpm_y);
+                data_o <= (31 downto tpm_y'length => '0') & std_logic_vector(tpm_y);
             end if;
         end if;
     end process;
@@ -706,7 +706,7 @@ begin
         i_clk => clk_i,
         i_rstb => rst_i,
         i_sync_reset => load_seed_for_lfsr,
-        i_seed => seed_for_lfsr,
+        i_seed => seed_for_lfsr(7 downto 0),
         i_en => enable_for_lfsr,
         o_lsfr => lfsr_random_number
     );
