@@ -323,7 +323,7 @@ begin
                 data_o <= (others => '0');
         elsif(rising_edge(clk_i)) then
             if((enable_exit_w = '1') and (data_ok_i = '1')) then
-                data_o <= (31 downto tpm_w(counter_i, counter_j)'length => tpm_w(counter_i, counter_j)(1)) & std_logic_vector(tpm_w(counter_i, counter_j));
+                data_o <= std_logic_vector(resize(tpm_w(counter_i, counter_j), 32));
             elsif(enable_exit_y = '1') then
                 data_o <= (31 downto tpm_y'length => tpm_y(1)) & std_logic_vector(tpm_y);
             end if;
