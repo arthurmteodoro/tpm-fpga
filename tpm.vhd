@@ -85,12 +85,24 @@ architecture behavior of tpm is
         o_lsfr : out std_logic_vector(G_M-1 downto 0)
     );
     end component;
+    
+    component lfsr32 is port(
+        clk: in std_logic;
+        rst: in std_logic;
+        enable: in std_logic;
+        load_seed: in std_logic;
+        seed: in std_logic_vector(31 downto 0);
+        lfsr_o: out std_logic_vector(31 downto 0)
+    );
+    end component;
 
     ---------------------------------------------------------------------------------------------
     -- DEFINICAO DOS TIPOS                                                                     --
     ---------------------------------------------------------------------------------------------
     type vector_of_byte is array(integer range <>) of signed(7 downto 0); -- vetor de bytes para o valor de sigma
     type matrix_of_byte is array(integer range <>, integer range <>) of signed(7 downto 0); -- matriz de bytes para os pesos e entrada
+    type vector_of_word is array(integer range <>) of std_logic_vector(31 downto 0); -- vetor de 32 bits para o valor do gerador de x
+    type vector_of_std_logic is array(integer range <>) of std_logic; -- vetor de std_logic para controle dos lfsrs de 32 bits
     
     ---------------------------------------------------------------------------------------------
     -- DEFINICAO DOS SINAIS                                                                    --
@@ -108,6 +120,11 @@ architecture behavior of tpm is
     signal seed_for_lfsr : std_logic_vector(31 downto 0);
     signal enable_for_lfsr : std_logic;
     signal lfsr_random_number : std_logic_vector(7 downto 0);
+    
+    -- sinais para serem utilizados nos lfsrs de 32 bits
+    signal load_seed_for_lfsr32 : vector_of_std_logic(K-1 downto 0);
+    signal enable_for_lfsr32 : vector_of_std_logic(K-1 downto 0);
+    signal lfsr32_random_number : vector_of_word(K-1 downto 0);
     
     -- sinais intermediarios para saida
     signal busy : std_logic;
@@ -137,8 +154,8 @@ architecture behavior of tpm is
     ---------------------------------------------------------------------------------------------
     -- DEFINICAO DOS TIPOS E SINAIS PARA A MAQUINA DE ESTADOS                                  --
     ---------------------------------------------------------------------------------------------
-    type state is (idle, load_seed, load_seed_comp, generate_w, load_x, calc_o, calc_y, exit_w, 
-                   load_bob_y, update_w, update_clip_w, exit_y);
+    type state is (idle, load_seed, load_seed_comp, generate_w, generate_new_input_x, load_x, calc_o, calc_y, exit_w, 
+                   load_bob_y, update_w, update_clip_w, exit_y, load_seed_x, load_seed_comp_x);
     
     signal this_state : state;
     signal next_state : state;
@@ -260,8 +277,17 @@ begin
                     end loop;
                 end loop;
         elsif(rising_edge(clk_i)) then
-            if((enable_load_x = '1') and (data_ok_i = '1')) then
-                tpm_x(counter_i, counter_j) <= signed(data_i(7 downto 0));
+            if(enable_load_x = '1') then
+                --tpm_x(counter_i, counter_j) <= signed(data_i(7 downto 0));
+                for i in 0 to K-1 loop
+                    for j in 0 to N-1 loop
+                        if (lfsr32_random_number(i)(j) = '1') then
+                            tpm_x(i, j) <= "00000001";
+                        else
+                            tpm_x(i, j) <= "11111111";
+                        end if;
+                    end loop;
+                end loop;
             end if;
         end if;
     end process;
@@ -370,6 +396,11 @@ begin
                 enable_update_w <= '0';
                 enable_clip_w <= '0';
                 
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 
@@ -379,8 +410,8 @@ begin
                             next_state <= load_seed;
                         when "00000010" =>
                             next_state <= generate_w;
-                        when "00000011" =>
-                            next_state <= load_x;
+                        --when "00000011" =>
+                        --    next_state <= load_x;
                         when "00000100" =>
                             clear_h <= '1';
                             next_state <= calc_o;
@@ -390,6 +421,10 @@ begin
                             next_state <= update_w;
                         when "00010000" =>
                             next_state <= exit_w;
+                        when "10000000" =>
+                            next_state <= load_seed_x;
+                        when "11000000" =>
+                            next_state <= generate_new_input_x;
                         when others =>
                             next_state <= idle;
                     end case;
@@ -416,6 +451,11 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
                 if(data_ok_i = '1') then
                     next_state <= load_seed_comp;
                 else
@@ -441,7 +481,68 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
                 next_state <= idle;
+                
+            when load_seed_x =>
+                busy <= '1';
+                enable_for_lfsr <= '0';
+                load_seed_for_lfsr <= '0';
+                enable_load_seed_lfsr <= '0';
+                enable_generate_w <= '0';
+                enable_counter <= '0';
+                enable_load_x <= '0';
+                enable_calc_o <= '0';
+                clear_h <= '0';
+                clear_y <= '0';
+                enable_calc_y <= '0';
+                enable_counter_simple <= '0';
+                enable_load_y_bob <= '0';
+                enable_update_w <= '0';
+                enable_clip_w <= '0';
+                enable_exit_w <= '0';
+                enable_exit_y <= '0';
+                
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
+                load_seed_for_lfsr32(counter) <= '1';
+                
+                next_state <= load_seed_comp_x;
+                
+            when load_seed_comp_x =>
+                busy <= '1';
+                enable_for_lfsr <= '0';
+                load_seed_for_lfsr <= '0';
+                enable_load_seed_lfsr <= '0';
+                enable_generate_w <= '0';
+                enable_counter <= '0';
+                enable_load_x <= '0';
+                enable_calc_o <= '0';
+                clear_h <= '0';
+                clear_y <= '0';
+                enable_calc_y <= '0';
+                enable_counter_simple <= '1';
+                enable_load_y_bob <= '0';
+                enable_update_w <= '0';
+                enable_clip_w <= '0';
+                enable_exit_w <= '0';
+                enable_exit_y <= '0';
+                
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
+                load_seed_for_lfsr32(counter) <= '1';
+                
+                next_state <= idle;    
                 
             when generate_w =>
                 busy <= '1';
@@ -462,19 +563,24 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
                 if((counter_i = K-1) and (counter_j = N-1)) then
                     next_state <= idle;
                 else
                     next_state <= generate_w;
                 end if;
                 
-            when load_x =>
+            when generate_new_input_x =>
                 busy <= '1';
                 load_seed_for_lfsr <= '0';
                 enable_for_lfsr <= '0';
                 enable_load_seed_lfsr <= '0';
                 enable_generate_w <= '0';
-                enable_counter <= '1';
+                enable_counter <= '0';
                 enable_load_x <= '1';
                 enable_calc_o <= '0';
                 clear_h <= '0';
@@ -487,11 +593,38 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 
-                if((data_ok_i = '1') and (counter_i = K-1) and (counter_j = N-1)) then
-                    next_state <= idle;
-                else
-                    next_state <= load_x;
-                end if;
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '1';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
+                next_state <= load_x;
+        
+            when load_x =>
+                busy <= '1';
+                load_seed_for_lfsr <= '0';
+                enable_for_lfsr <= '0';
+                enable_load_seed_lfsr <= '0';
+                enable_generate_w <= '0';
+                enable_counter <= '0';
+                enable_load_x <= '1';
+                enable_calc_o <= '0';
+                clear_h <= '0';
+                clear_y <= '0';
+                enable_calc_y <= '0';
+                enable_counter_simple <= '0';
+                enable_load_y_bob <= '0';
+                enable_update_w <= '0';
+                enable_clip_w <= '0';
+                enable_exit_w <= '0';
+                enable_exit_y <= '0';
+                
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
+                next_state <= idle;
                 
             when calc_o =>
                 busy <= '1';
@@ -511,6 +644,11 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
                 
                 if(counter = K-1) then
                     next_state <= calc_y;
@@ -536,6 +674,12 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
                 next_state <= exit_y;
                 
             when exit_y =>
@@ -556,6 +700,12 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '1';
+                
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
                 next_state <= idle;
                 
             when load_bob_y =>
@@ -576,6 +726,11 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
                 
                 if(data_ok_i = '1') then
                     next_state <= idle;
@@ -602,6 +757,11 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
                 next_state <= update_clip_w;
                 
             when update_clip_w =>
@@ -623,6 +783,11 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
                 next_state <= idle;
                 
             when exit_w =>
@@ -643,6 +808,11 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '1';
                 enable_exit_y <= '0';
+                
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
                 
                 if((counter_i = K-1) and (counter_j = N-1) and (data_ok_i = '1')) then
                     next_state <= idle;
@@ -669,6 +839,11 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
                 
                 next_state <= idle;
         end case;
@@ -710,5 +885,17 @@ begin
         i_en => enable_for_lfsr,
         o_lsfr => lfsr_random_number
     );
+    
+    -- instanciacao dos lfsr32
+    gen_lfsr32: for i in 0 to K-1 generate
+        lfsr32_x : lfsr32 port map (
+            clk => clk_i,
+            rst => rst_i,
+            enable => enable_for_lfsr32(i),
+            load_seed => load_seed_for_lfsr32(i),
+            seed => data_i,
+            lfsr_o => lfsr32_random_number(i)
+        );
+    end generate gen_lfsr32;
 
 end behavior;
