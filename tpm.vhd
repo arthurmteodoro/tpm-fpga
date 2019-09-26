@@ -410,8 +410,8 @@ begin
                             next_state <= load_seed;
                         when "00000010" =>
                             next_state <= generate_w;
-                        --when "00000011" =>
-                        --    next_state <= load_x;
+                        when "00000011" =>
+                            next_state <= generate_new_input_x;
                         when "00000100" =>
                             clear_h <= '1';
                             next_state <= calc_o;
@@ -423,8 +423,6 @@ begin
                             next_state <= exit_w;
                         when "10000000" =>
                             next_state <= load_seed_x;
-                        when "11000000" =>
-                            next_state <= generate_new_input_x;
                         when others =>
                             next_state <= idle;
                     end case;
