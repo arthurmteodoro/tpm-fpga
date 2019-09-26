@@ -101,7 +101,17 @@ begin
         op <= "11000000";
         data_ok <= '1';
 
-        wait for clk_period;         
+        wait for clk_period; 
+        
+        op <= (others => '0');
+        data_ok <= '0';
+
+        wait for clk_period*5;
+
+        op <= "11000000";
+        data_ok <= '1';
+
+        wait for clk_period;        
 
         op <= (others => '0');
         data_in <= (others => '0');

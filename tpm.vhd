@@ -277,8 +277,17 @@ begin
                     end loop;
                 end loop;
         elsif(rising_edge(clk_i)) then
-            if((enable_load_x = '1') and (data_ok_i = '1')) then
-                tpm_x(counter_i, counter_j) <= signed(data_i(7 downto 0));
+            if(enable_load_x = '1') then
+                --tpm_x(counter_i, counter_j) <= signed(data_i(7 downto 0));
+                for i in 0 to K-1 loop
+                    for j in 0 to N-1 loop
+                        if (lfsr32_random_number(i)(j) = '1') then
+                            tpm_x(i, j) <= "00000001";
+                        else
+                            tpm_x(i, j) <= "11111111";
+                        end if;
+                    end loop;
+                end loop;
             end if;
         end if;
     end process;
@@ -401,8 +410,8 @@ begin
                             next_state <= load_seed;
                         when "00000010" =>
                             next_state <= generate_w;
-                        when "00000011" =>
-                            next_state <= load_x;
+                        --when "00000011" =>
+                        --    next_state <= load_x;
                         when "00000100" =>
                             clear_h <= '1';
                             next_state <= calc_o;
@@ -589,7 +598,7 @@ begin
                     load_seed_for_lfsr32(i) <= '0';
                 end loop;
                 
-                next_state <= idle;
+                next_state <= load_x;
         
             when load_x =>
                 busy <= '1';
@@ -597,7 +606,7 @@ begin
                 enable_for_lfsr <= '0';
                 enable_load_seed_lfsr <= '0';
                 enable_generate_w <= '0';
-                enable_counter <= '1';
+                enable_counter <= '0';
                 enable_load_x <= '1';
                 enable_calc_o <= '0';
                 clear_h <= '0';
@@ -615,11 +624,7 @@ begin
                     load_seed_for_lfsr32(i) <= '0';
                 end loop;
                 
-                if((data_ok_i = '1') and (counter_i = K-1) and (counter_j = N-1)) then
-                    next_state <= idle;
-                else
-                    next_state <= load_x;
-                end if;
+                next_state <= idle;
                 
             when calc_o =>
                 busy <= '1';
