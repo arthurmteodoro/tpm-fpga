@@ -154,7 +154,7 @@ architecture behavior of tpm is
     ---------------------------------------------------------------------------------------------
     -- DEFINICAO DOS TIPOS E SINAIS PARA A MAQUINA DE ESTADOS                                  --
     ---------------------------------------------------------------------------------------------
-    type state is (idle, load_seed, load_seed_comp, generate_w, load_x, calc_o, calc_y, exit_w, 
+    type state is (idle, load_seed, load_seed_comp, generate_w, generate_new_input_x, load_x, calc_o, calc_y, exit_w, 
                    load_bob_y, update_w, update_clip_w, exit_y, load_seed_x, load_seed_comp_x);
     
     signal this_state : state;
@@ -414,6 +414,8 @@ begin
                             next_state <= exit_w;
                         when "10000000" =>
                             next_state <= load_seed_x;
+                        when "11000000" =>
+                            next_state <= generate_new_input_x;
                         when others =>
                             next_state <= idle;
                     end case;
@@ -563,6 +565,32 @@ begin
                     next_state <= generate_w;
                 end if;
                 
+            when generate_new_input_x =>
+                busy <= '1';
+                load_seed_for_lfsr <= '0';
+                enable_for_lfsr <= '0';
+                enable_load_seed_lfsr <= '0';
+                enable_generate_w <= '0';
+                enable_counter <= '0';
+                enable_load_x <= '1';
+                enable_calc_o <= '0';
+                clear_h <= '0';
+                clear_y <= '0';
+                enable_calc_y <= '0';
+                enable_counter_simple <= '0';
+                enable_load_y_bob <= '0';
+                enable_update_w <= '0';
+                enable_clip_w <= '0';
+                enable_exit_w <= '0';
+                enable_exit_y <= '0';
+                
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '1';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
+                next_state <= idle;
+        
             when load_x =>
                 busy <= '1';
                 load_seed_for_lfsr <= '0';
