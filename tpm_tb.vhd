@@ -226,18 +226,14 @@ begin
         report "Carregando o Y de Bob";
         op <= "00000101";
         data_ok <= '1';
-        wait for clk_period;
-
-        -- espera o delay da comunicacao
-        data_ok <= '0';
-        wait for clk_period*4;
-
-        -- carrega o y de bob
         data_in <= (31 downto 8 => '0') & "00000001"; -- resultado da 1
         --data_in <= (31 downto 8 => '0') & "11111111"; -- resultado da -1
-        data_ok <= '1';
 
         wait for clk_period;
+
+        data_ok <= '0';
+
+        wait for clk_period*2;
 
         op <= (others => '0');
         data_in <= (others => '0');

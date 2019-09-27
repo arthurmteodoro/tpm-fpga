@@ -337,7 +337,7 @@ begin
         if(rst_i = '1') then
             tpm_y_bob <= (others => '0');
         elsif(rising_edge(clk_i)) then
-            if((data_ok_i = '1') and (enable_load_y_bob = '1')) then
+            if(enable_load_y_bob = '1') then
                 tpm_y_bob <= signed(data_i(7 downto 0));
             end if;
         end if;
@@ -731,11 +731,7 @@ begin
                     load_seed_for_lfsr32(i) <= '0';
                 end loop;
                 
-                if(data_ok_i = '1') then
-                    next_state <= idle;
-                else
-                    next_state <= load_bob_y;
-                end if;
+                next_state <= idle;
                 
             when update_w =>
                 busy <= '1';
