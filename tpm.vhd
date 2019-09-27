@@ -579,7 +579,7 @@ begin
                 enable_load_seed_lfsr <= '0';
                 enable_generate_w <= '0';
                 enable_counter <= '0';
-                enable_load_x <= '1';
+                enable_load_x <= '0';
                 enable_calc_o <= '0';
                 clear_h <= '0';
                 clear_y <= '0';
