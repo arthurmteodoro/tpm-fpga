@@ -294,19 +294,20 @@ begin
     
     -- processo para calcular os valores de sigma
     tpm_output_calc_o : process(clk_i, rst_i, clear_h)
-        variable h : vector_of_byte(K-1 downto 0);
+        variable h : signed(7 downto 0);
     begin
         if((rst_i = '1') or (clear_h = '1')) then
             for i in 0 to K-1 loop
                 tpm_o(i) <= (others => '0');
-                h(i) := (others => '0');
             end loop;
+            h := (others => '0');
         elsif(rising_edge(clk_i)) then
             if(enable_calc_o = '1') then
+                h := (others => '0');
                 for j in 0 to N-1 loop
-                    h(counter) := resize((h(counter) + tpm_w(counter, j) * tpm_x(counter, j)), 8);
+                    h := resize((h + tpm_w(counter, j) * tpm_x(counter, j)), 8);
                 end loop;
-                tpm_o(counter) <= sign(h(counter));
+                tpm_o(counter) <= sign(h);
             end if;
         end if;
     end process;
