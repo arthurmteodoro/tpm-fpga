@@ -85,7 +85,8 @@ begin
         -- manda carregar a semente
         report "Carregando a semente para geração dos pesos";
         address <= "00000001";
-        data_in <= (31 downto 8 => '0') & "01001101"; -- resultado da -1
+        data_in <= (31 downto 8 => '0') & "01001101"; -- resultado da 1
+        -- data_in <= (31 downto 8 => '0') & "01011101"; -- resultado da -1
         write_req <= '1';
 
         wait for clk_period;
@@ -191,7 +192,7 @@ begin
         address <= "00010001";
         read_req <= '1';
 
-        wait for clk_period;
+        wait for clk_period*2;
 
         address <= (others => '0');
         read_req <= '0';
@@ -203,7 +204,7 @@ begin
             address <= "00010010";
             read_req <= '1';
 
-            wait for clk_period;
+            wait for clk_period*2;
 
             address <= (others => '0');
             read_req <= '0';

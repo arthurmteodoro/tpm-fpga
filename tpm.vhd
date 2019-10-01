@@ -341,23 +341,7 @@ begin
             end if;
         end if;
     end process;
-    
-    -- processo para controlar a sinalizacao de valor valido na saida
-    tpm_delay_valid : process(clk, reset)
-    begin
-        if(reset = '1') then
-            tpm_output_valid <= '0';
-        elsif(rising_edge(clk)) then
-            if(this_state = exit_w) then
-                tpm_output_valid <= avs_write;
-            elsif(this_state = exit_y) then
-                tpm_output_valid <= '1';
-            else
-                tpm_output_valid <= '0';
-            end if;
-        end if;
-    end process;
-    
+
     ---------------------------------------------------------------------------------------------
     -- PROCESSOS DO BARRAMENTO                                                          --
     ---------------------------------------------------------------------------------------------
@@ -374,7 +358,7 @@ begin
             if(enable_exit_w = '1') then
                 avs_readdata <= std_logic_vector(resize(tpm_w(counter_i, counter_j), 32));
             elsif(enable_exit_y = '1') then
-                avs_readdata <= (31 downto tpm_y'length => tpm_y(1)) & std_logic_vector(tpm_y);
+                avs_readdata <= std_logic_vector(resize(tpm_y, 32));
             end if;
         end if;
     end process;
@@ -426,8 +410,6 @@ begin
                             next_state <= load_bob_y;
                         when "00000110" =>
                             next_state <= update_w;
-                        when "00010000" =>
-                            next_state <= exit_w;
                         when "10000000" =>
                             next_state <= load_seed_x;
                         when others =>
@@ -441,7 +423,7 @@ begin
                         when "00010010" =>
                             enable_exit_w <= '1';
                             enable_counter <= '1';
-                            next_state <= idle;
+                            next_state <= exit_w;
                         when others =>
                             next_state <= idle;
                     end case;
@@ -805,7 +787,7 @@ begin
                 enable_for_lfsr <= '0';
                 enable_load_seed_lfsr <= '0';
                 enable_generate_w <= '0';
-                enable_counter <= '1';
+                enable_counter <= '0';
                 enable_load_x <= '0';
                 enable_calc_o <= '0';
                 clear_h <= '0';
@@ -815,7 +797,7 @@ begin
                 enable_load_y_bob <= '0';
                 enable_update_w <= '0';
                 enable_clip_w <= '0';
-                enable_exit_w <= '1';
+                enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 
                 for i in 0 to K-1 loop
@@ -823,12 +805,7 @@ begin
                     load_seed_for_lfsr32(i) <= '0';
                 end loop;
                 
-                --if((counter_i = K-1) and (counter_j = N-1)) then
-                    next_state <= idle;
-                --else
-                --    next_state <= exit_w;
-                --end if;
-                
+                next_state <= idle;
                 
             when others =>
                 busy <= '0';
