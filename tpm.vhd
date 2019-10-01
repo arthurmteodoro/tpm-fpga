@@ -122,6 +122,7 @@ architecture behavior of tpm is
     
     -- sinais para serem utilizados nos lfsrs de 32 bits
     signal load_seed_for_lfsr32 : vector_of_std_logic(K-1 downto 0);
+    signal seed_for_lfsr32 : vector_of_word(K-1 downto 0);
     signal enable_for_lfsr32 : vector_of_std_logic(K-1 downto 0);
     signal lfsr32_random_number : vector_of_word(K-1 downto 0);
     
@@ -130,6 +131,7 @@ architecture behavior of tpm is
     signal tpm_output_valid : std_logic;
     
     -- sinais de enable para serem utilizados os processos para realizar as terefas
+    signal enable_load_seed_lfsr32 : std_logic;
     signal enable_load_seed_lfsr : std_logic;
     signal enable_generate_w : std_logic;
     signal enable_counter, enable_counter_process : std_logic;
@@ -176,6 +178,20 @@ begin
         elsif(rising_edge(clk)) then
             if(enable_load_seed_lfsr = '1') then
                 seed_for_lfsr <= avs_writedata;
+            end if;
+        end if;
+    end process;
+    
+    -- processo para carregar valores da semente para o gerador de numeros de 32 bits
+    tpm_load_seed32 : process(clk, reset)
+    begin
+        if(reset = '1') then
+            for i in 0 to K-1 loop
+                seed_for_lfsr32(i) <= (others => '0');
+            end loop;
+        elsif(rising_edge(clk)) then
+            if(enable_load_seed_lfsr32 = '1') then
+                seed_for_lfsr32(counter) <= avs_writedata;
             end if;
         end if;
     end process;
@@ -386,6 +402,7 @@ begin
                 enable_load_y_bob <= '0';
                 enable_update_w <= '0';
                 enable_clip_w <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -449,6 +466,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -475,6 +493,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -501,13 +520,12 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '1';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
                 end loop;
-                
-                load_seed_for_lfsr32(counter) <= '1';
                 
                 next_state <= load_seed_comp_x;
                 
@@ -529,12 +547,12 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
                 end loop;
-                
                 load_seed_for_lfsr32(counter) <= '1';
                 
                 next_state <= idle;    
@@ -557,6 +575,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -587,6 +606,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '1';
@@ -613,6 +633,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -639,6 +660,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -669,6 +691,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -695,6 +718,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '1';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -721,6 +745,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -747,6 +772,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -773,6 +799,7 @@ begin
                 enable_clip_w <= '1';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -799,6 +826,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -825,6 +853,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -877,7 +906,7 @@ begin
             rst => reset,
             enable => enable_for_lfsr32(i),
             load_seed => load_seed_for_lfsr32(i),
-            seed => avs_writedata,
+            seed => seed_for_lfsr32(i),
             lfsr_o => lfsr32_random_number(i)
         );
     end generate gen_lfsr32;
