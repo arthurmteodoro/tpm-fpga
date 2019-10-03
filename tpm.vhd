@@ -134,7 +134,7 @@ architecture behavior of tpm is
     signal enable_load_seed_lfsr32 : std_logic;
     signal enable_load_seed_lfsr : std_logic;
     signal enable_generate_w : std_logic;
-    signal enable_counter, enable_counter_process : std_logic;
+    signal enable_counter, enable_counter_process, enable_counter_col : std_logic;
     signal enable_load_x : std_logic;
     signal enable_calc_o : std_logic;
     signal clear_h : std_logic;
@@ -151,6 +151,7 @@ architecture behavior of tpm is
     signal counter_i : integer range 0 to K-1;
     signal counter_j : integer range 0 to N-1;
     signal counter : integer range 0 to K-1;
+    signal counter_col : integer range 0 to N-1;
     
     ---------------------------------------------------------------------------------------------
     -- DEFINICAO DOS TIPOS E SINAIS PARA A MAQUINA DE ESTADOS                                  --
@@ -233,6 +234,22 @@ begin
                 end if;
             end if;
         end if;
+    end process;
+    
+    -- processo para o contador de colunas da matriz, somente de 0 a N-1
+    tpm_col_counter: process(clk, reset)
+    begin
+    	if (reset = '1') then
+    		counter_col <= 0;
+    	elsif (rising_edge(clk)) then
+    		if (enable_counter_col = '1') then
+    			if (counter_col = N-1) then
+    				counter_col <= 0;
+    			else
+    				counter_col <= counter_col + 1;
+    			end if;
+    		end if;
+    	end if;
     end process;
     
     -- processo para gerar os numeros para w e para aprendizado
@@ -383,7 +400,7 @@ begin
     -- PROCESSOS DA MAQUINA DE ESTADOS                                                          --
     ---------------------------------------------------------------------------------------------
     
-    comb_fsm : process(this_state, avs_write, avs_address, counter_i, counter_j, counter)
+    comb_fsm : process(this_state, avs_write, avs_address, counter_i, counter_j, counter, avs_read)
     begin
         case this_state is
             when idle =>
