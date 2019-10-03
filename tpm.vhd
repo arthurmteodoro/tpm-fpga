@@ -310,16 +310,9 @@ begin
                 end loop;
         elsif(rising_edge(clk)) then
             if(enable_load_x = '1') then
-                --tpm_x(counter_i, counter_j) <= signed(avs_writedata(7 downto 0));
-                for i in 0 to K-1 loop
-                    for j in 0 to N-1 loop
-                        if (lfsr32_random_number(i)(j) = '1') then
-                            tpm_x(i, j) <= "00000001";
-                        else
-                            tpm_x(i, j) <= "11111111";
-                        end if;
-                    end loop;
-                end loop;
+            	for i in 0 to K-1 loop
+            		tpm_x(i, counter_col) <= limit_generate_w(lfsr32_random_number(i));
+            	end loop;
             end if;
         end if;
     end process;
