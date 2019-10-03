@@ -393,7 +393,7 @@ begin
     -- PROCESSOS DA MAQUINA DE ESTADOS                                                          --
     ---------------------------------------------------------------------------------------------
     
-    comb_fsm : process(this_state, avs_write, avs_address, counter_i, counter_j, counter, avs_read)
+    comb_fsm : process(this_state, avs_write, avs_address, counter_i, counter_j, counter, avs_read, counter_col)
     begin
         case this_state is
             when idle =>
@@ -651,14 +651,18 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
-                enable_counter_col <= '0';
+                enable_counter_col <= '1';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
                 end loop;
                 
-                next_state <= idle;
+                if (counter_col = N-1) then
+                	next_state <= idle;
+                else
+                	next_state <= generate_new_input_x;
+                end if;
                 
             when calc_o =>
                 busy <= '1';

@@ -47,7 +47,9 @@ architecture tb of tpm_tb is
 
 begin
     
-    uut : tpm port map (
+    uut : tpm generic map (
+        L => 5
+    ) port map (
         clk => clk,
         reset => rst,
         avs_address => address,
