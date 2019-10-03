@@ -18,16 +18,15 @@ entity tpm is generic(
     L : natural := 5; -- valor limite para os pesos dos neuronios (-L ate L)
     RULE : string := "hebbian"
 ); port (
-    clk_i : in std_logic; -- clock do sistema
-    rst_i : in std_logic; -- reset assincrono ativo em alto
+    clk : in std_logic; -- clock do sistema
+    reset : in std_logic; -- reset assincrono ativo em alto
     -- Interface de entrada do usuario
-    op_i : in std_logic_vector(7 downto 0); -- entrada da operacao desejada
-    data_i : in std_logic_vector(31 downto 0); -- entrada de dados do componente
-    data_ok_i : in std_logic; -- quando data_ok_i = '1', a operacao ou o valor de dados e considerado valido e executado
+    avs_address : in std_logic_vector(7 downto 0); -- entrada da operacao desejada
+    avs_writedata : in std_logic_vector(31 downto 0); -- entrada de dados do componente
+    avs_write : in std_logic; -- quando avs_write = '1', a operacao ou o valor de dados e considerado valido e executado
     -- Interface de saida para o usuario
-    data_o : out std_logic_vector(31 downto 0); -- saida de dados do component
-    data_valid_o : out std_logic; -- quando data_valid_o = '1', o dado em data_o esta estavel
-    busy_o : out std_logic -- quando busy_o = '1',  componente esta realizando uma tarefa
+    avs_readdata : out std_logic_vector(31 downto 0); -- saida de dados do component
+    avs_read : in std_logic -- quando data_valid_o = '1', o dado em data_o esta estavel
 );
 end tpm;
 
@@ -123,6 +122,7 @@ architecture behavior of tpm is
     
     -- sinais para serem utilizados nos lfsrs de 32 bits
     signal load_seed_for_lfsr32 : vector_of_std_logic(K-1 downto 0);
+    signal seed_for_lfsr32 : vector_of_word(K-1 downto 0);
     signal enable_for_lfsr32 : vector_of_std_logic(K-1 downto 0);
     signal lfsr32_random_number : vector_of_word(K-1 downto 0);
     
@@ -131,6 +131,7 @@ architecture behavior of tpm is
     signal tpm_output_valid : std_logic;
     
     -- sinais de enable para serem utilizados os processos para realizar as terefas
+    signal enable_load_seed_lfsr32 : std_logic;
     signal enable_load_seed_lfsr : std_logic;
     signal enable_generate_w : std_logic;
     signal enable_counter, enable_counter_process : std_logic;
@@ -170,24 +171,38 @@ begin
     ---------------------------------------------------------------------------------------------
     
     -- processo para carregar valores da semente para o gerador de numeros
-    tpm_load_seed : process(clk_i, rst_i)
+    tpm_load_seed : process(clk, reset)
     begin
-        if(rst_i = '1') then
+        if(reset = '1') then
             seed_for_lfsr <= (others => '0');
-        elsif(rising_edge(clk_i)) then
-            if((enable_load_seed_lfsr = '1') and (data_ok_i = '1')) then
-                seed_for_lfsr <= data_i;
+        elsif(rising_edge(clk)) then
+            if(enable_load_seed_lfsr = '1') then
+                seed_for_lfsr <= avs_writedata;
+            end if;
+        end if;
+    end process;
+    
+    -- processo para carregar valores da semente para o gerador de numeros de 32 bits
+    tpm_load_seed32 : process(clk, reset)
+    begin
+        if(reset = '1') then
+            for i in 0 to K-1 loop
+                seed_for_lfsr32(i) <= (others => '0');
+            end loop;
+        elsif(rising_edge(clk)) then
+            if(enable_load_seed_lfsr32 = '1') then
+                seed_for_lfsr32(counter) <= avs_writedata;
             end if;
         end if;
     end process;
     
     -- processo para os contadores da matriz (i e j)
-    tpm_counter : process(clk_i, rst_i)
+    tpm_counter : process(clk, reset)
     begin
-        if(rst_i = '1') then
+        if(reset = '1') then
                 counter_i <= 0;
                 counter_j <= 0;
-        elsif(rising_edge(clk_i)) then
+        elsif(rising_edge(clk)) then
             if(enable_counter_process = '1') then
                 if((counter_i = K-1) and (counter_j = N-1)) then
                     counter_i <= 0;
@@ -205,11 +220,11 @@ begin
     end process;
     
     -- processo para o contador das linhas da matriz, somente de 0 a K-1
-    tpm_simple_counter : process(clk_i, rst_i)
+    tpm_simple_counter : process(clk, reset)
     begin
-        if(rst_i = '1') then
+        if(reset = '1') then
                 counter <= 0;
-        elsif(rising_edge(clk_i)) then
+        elsif(rising_edge(clk)) then
             if(enable_counter_simple = '1') then
                 if(counter = K-1) then
                     counter <= 0;
@@ -221,17 +236,17 @@ begin
     end process;
     
     -- processo para gerar os numeros para w e para aprendizado
-    tpm_load_w : process(clk_i, rst_i)
+    tpm_load_w : process(clk, reset)
         variable i, j : integer := 0;
         variable w : matrix_of_byte(K-1 downto 0, N-1 downto 0);
     begin
-        if(rst_i = '1') then
+        if(reset = '1') then
             for i in 0 to K-1 loop
                 for j in 0 to N-1 loop
                     tpm_w(i, j) <= (others => '0');
                 end loop;
             end loop;
-        elsif(rising_edge(clk_i)) then
+        elsif(rising_edge(clk)) then
             -- para carregar os pesos a partir do gerador de numeros psudo-aleatorios
             if(enable_generate_w = '1') then
                 tpm_w(counter_i, counter_j) <= limit_generate_w(lfsr_random_number);
@@ -268,17 +283,17 @@ begin
     end process;
     
     -- processo para carregar os valores de x para a tpm
-    tpm_load_x : process(clk_i, rst_i)
+    tpm_load_x : process(clk, reset)
     begin
-        if(rst_i = '1') then
+        if(reset = '1') then
                 for i in 0 to K-1 loop
                     for j in 0 to N-1 loop
                         tpm_x(i, j) <= (others => '0');
                     end loop;
                 end loop;
-        elsif(rising_edge(clk_i)) then
+        elsif(rising_edge(clk)) then
             if(enable_load_x = '1') then
-                --tpm_x(counter_i, counter_j) <= signed(data_i(7 downto 0));
+                --tpm_x(counter_i, counter_j) <= signed(avs_writedata(7 downto 0));
                 for i in 0 to K-1 loop
                     for j in 0 to N-1 loop
                         if (lfsr32_random_number(i)(j) = '1') then
@@ -293,15 +308,15 @@ begin
     end process;
     
     -- processo para calcular os valores de sigma
-    tpm_output_calc_o : process(clk_i, rst_i, clear_h)
+    tpm_output_calc_o : process(clk, reset, clear_h)
         variable h : signed(7 downto 0);
     begin
-        if((rst_i = '1') or (clear_h = '1')) then
+        if((reset = '1') or (clear_h = '1')) then
             for i in 0 to K-1 loop
                 tpm_o(i) <= (others => '0');
             end loop;
             h := (others => '0');
-        elsif(rising_edge(clk_i)) then
+        elsif(rising_edge(clk)) then
             if(enable_calc_o = '1') then
                 h := (others => '0');
                 for j in 0 to N-1 loop
@@ -313,14 +328,14 @@ begin
     end process;
     
     -- processo para calcular o valor de y da tpm
-    tpm_calc_y : process(clk_i, rst_i, clear_y)
+    tpm_calc_y : process(clk, reset, clear_y)
         variable y : signed(7 downto 0) := "00000001";
         variable i : integer;
     begin
-        if((rst_i = '1') or (clear_y = '1')) then
+        if((reset = '1') or (clear_y = '1')) then
                 tpm_y <= "00000001";
                 y := "00000001";
-        elsif(rising_edge(clk_i)) then
+        elsif(rising_edge(clk)) then
             if(enable_calc_y = '1') then
                 y := "00000001";
                 for i in 0 to K-1 loop
@@ -332,43 +347,34 @@ begin
     end process;
     
     -- processo para armazenar o valor de y de bob
-    tpm_load_bob_y : process(clk_i, rst_i)
+    tpm_load_bob_y : process(clk, reset)
     begin
-        if(rst_i = '1') then
+        if(reset = '1') then
             tpm_y_bob <= (others => '0');
-        elsif(rising_edge(clk_i)) then
-            if((data_ok_i = '1') and (enable_load_y_bob = '1')) then
-                tpm_y_bob <= signed(data_i(7 downto 0));
+        elsif(rising_edge(clk)) then
+            if(enable_load_y_bob = '1') then
+                tpm_y_bob <= signed(avs_writedata(7 downto 0));
             end if;
         end if;
     end process;
+
+    ---------------------------------------------------------------------------------------------
+    -- PROCESSOS DO BARRAMENTO                                                          --
+    ---------------------------------------------------------------------------------------------
     
     -- processo para controlar a saida do componente
-    tpm_output : process(clk_i, rst_i)
+    tpm_output : process(clk, reset)
     begin
-        if(rst_i = '1') then
-                data_o <= (others => '0');
-        elsif(rising_edge(clk_i)) then
-            if((enable_exit_w = '1') and (data_ok_i = '1')) then
-                data_o <= std_logic_vector(resize(tpm_w(counter_i, counter_j), 32));
-            elsif(enable_exit_y = '1') then
-                data_o <= (31 downto tpm_y'length => tpm_y(1)) & std_logic_vector(tpm_y);
+        if(reset = '1') then
+                avs_readdata <= (others => '0');
+        elsif(rising_edge(clk)) then
+            if (avs_read = '1' and avs_address = "00000000") then
+                avs_readdata <= (31 downto 1 => '0') & busy;
             end if;
-        end if;
-    end process;
-    
-    -- processo para controlar a sinalizacao de valor valido na saida
-    tpm_delay_valid : process(clk_i, rst_i)
-    begin
-        if(rst_i = '1') then
-            tpm_output_valid <= '0';
-        elsif(rising_edge(clk_i)) then
-            if(this_state = exit_w) then
-                tpm_output_valid <= data_ok_i;
-            elsif(this_state = exit_y) then
-                tpm_output_valid <= '1';
-            else
-                tpm_output_valid <= '0';
+            if(enable_exit_w = '1') then
+                avs_readdata <= std_logic_vector(resize(tpm_w(counter_i, counter_j), 32));
+            elsif(enable_exit_y = '1') then
+                avs_readdata <= std_logic_vector(resize(tpm_y, 32));
             end if;
         end if;
     end process;
@@ -377,7 +383,7 @@ begin
     -- PROCESSOS DA MAQUINA DE ESTADOS                                                          --
     ---------------------------------------------------------------------------------------------
     
-    comb_fsm : process(this_state, data_ok_i, op_i, counter_i, counter_j, counter)
+    comb_fsm : process(this_state, avs_write, avs_address, counter_i, counter_j, counter)
     begin
         case this_state is
             when idle =>
@@ -396,6 +402,7 @@ begin
                 enable_load_y_bob <= '0';
                 enable_update_w <= '0';
                 enable_clip_w <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -405,8 +412,8 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 
-                if(data_ok_i = '1') then
-                    case op_i is
+                if(avs_write = '1') then
+                    case avs_address is
                         when "00000001" =>
                             next_state <= load_seed;
                         when "00000010" =>
@@ -420,10 +427,20 @@ begin
                             next_state <= load_bob_y;
                         when "00000110" =>
                             next_state <= update_w;
-                        when "00010000" =>
-                            next_state <= exit_w;
                         when "10000000" =>
                             next_state <= load_seed_x;
+                        when others =>
+                            next_state <= idle;
+                    end case;
+                elsif (avs_read = '1') then
+                    case avs_address is
+                        when "00010001" =>
+                            enable_exit_y <= '1';
+                            next_state <= exit_y;
+                        when "00010010" =>
+                            enable_exit_w <= '1';
+                            enable_counter <= '1';
+                            next_state <= exit_w;
                         when others =>
                             next_state <= idle;
                     end case;
@@ -449,17 +466,14 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
                 end loop;
                 
-                if(data_ok_i = '1') then
-                    next_state <= load_seed_comp;
-                else
-                    next_state <= load_seed;
-                end if;
+                next_state <= load_seed_comp;
                 
             when load_seed_comp =>
                 busy <= '1';
@@ -479,6 +493,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -505,13 +520,12 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '1';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
                 end loop;
-                
-                load_seed_for_lfsr32(counter) <= '1';
                 
                 next_state <= load_seed_comp_x;
                 
@@ -533,12 +547,12 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
                 end loop;
-                
                 load_seed_for_lfsr32(counter) <= '1';
                 
                 next_state <= idle;    
@@ -561,6 +575,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -591,6 +606,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '1';
@@ -617,6 +633,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -643,6 +660,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -673,13 +691,14 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
                 end loop;
                 
-                next_state <= exit_y;
+                next_state <= idle;
                 
             when exit_y =>
                 busy <= '1';
@@ -699,6 +718,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '1';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -725,17 +745,14 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
                 end loop;
                 
-                if(data_ok_i = '1') then
-                    next_state <= idle;
-                else
-                    next_state <= load_bob_y;
-                end if;
+                next_state <= idle;
                 
             when update_w =>
                 busy <= '1';
@@ -755,6 +772,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -781,6 +799,7 @@ begin
                 enable_clip_w <= '1';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -795,7 +814,7 @@ begin
                 enable_for_lfsr <= '0';
                 enable_load_seed_lfsr <= '0';
                 enable_generate_w <= '0';
-                enable_counter <= '1';
+                enable_counter <= '0';
                 enable_load_x <= '0';
                 enable_calc_o <= '0';
                 clear_h <= '0';
@@ -805,20 +824,16 @@ begin
                 enable_load_y_bob <= '0';
                 enable_update_w <= '0';
                 enable_clip_w <= '0';
-                enable_exit_w <= '1';
+                enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
                 end loop;
                 
-                if((counter_i = K-1) and (counter_j = N-1) and (data_ok_i = '1')) then
-                    next_state <= idle;
-                else
-                    next_state <= exit_w;
-                end if;
-                
+                next_state <= idle;
                 
             when others =>
                 busy <= '0';
@@ -838,6 +853,7 @@ begin
                 enable_clip_w <= '0';
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -848,10 +864,10 @@ begin
         end case;
     end process;
     
-    syn_fsm : process(clk_i)
+    syn_fsm : process(clk)
     begin
-        if(rising_edge(clk_i)) then
-            if(rst_i = '1') then
+        if(rising_edge(clk)) then
+            if(reset = '1') then
                 this_state <= idle;
             else
                 this_state <= next_state;
@@ -862,23 +878,21 @@ begin
     ---------------------------------------------------------------------------------------------
     -- ATRIBUICAO DOS SINAIS COMBINATORIOS                                                     --
     ---------------------------------------------------------------------------------------------
-    enable_counter_process <= '1' when this_state = generate_w else
-                              (enable_counter and data_ok_i);
+    enable_counter_process <= '1' when this_state = generate_w else enable_counter;
     
     ---------------------------------------------------------------------------------------------
     -- ATRIBUICAO DOS SINAIS INTERNOS PARA SINAIS DA PORTA                                     --
     ---------------------------------------------------------------------------------------------
     
-    busy_o <= busy;
-    data_valid_o <= tpm_output_valid;
+    -- busy_o <= busy;
     
     ---------------------------------------------------------------------------------------------
     -- INSTANCIACAO DOS COMPONENTES UTILIZADOS                                                 --
     ---------------------------------------------------------------------------------------------
     lfsr1 : lfsr generic map (G_M => 8, G_POLY => "10111000")
     port map(
-        i_clk => clk_i,
-        i_rstb => rst_i,
+        i_clk => clk,
+        i_rstb => reset,
         i_sync_reset => load_seed_for_lfsr,
         i_seed => seed_for_lfsr(7 downto 0),
         i_en => enable_for_lfsr,
@@ -888,11 +902,11 @@ begin
     -- instanciacao dos lfsr32
     gen_lfsr32: for i in 0 to K-1 generate
         lfsr32_x : lfsr32 port map (
-            clk => clk_i,
-            rst => rst_i,
+            clk => clk,
+            rst => reset,
             enable => enable_for_lfsr32(i),
             load_seed => load_seed_for_lfsr32(i),
-            seed => data_i,
+            seed => seed_for_lfsr32(i),
             lfsr_o => lfsr32_random_number(i)
         );
     end generate gen_lfsr32;
