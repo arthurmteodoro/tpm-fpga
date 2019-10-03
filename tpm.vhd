@@ -420,6 +420,7 @@ begin
                 enable_update_w <= '0';
                 enable_clip_w <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -484,6 +485,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -511,6 +513,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -538,6 +541,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '1';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -565,6 +569,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -593,6 +598,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -624,6 +630,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '1';
@@ -651,6 +658,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -678,6 +686,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -709,6 +718,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -736,6 +746,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '1';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -763,6 +774,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -790,6 +802,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -817,6 +830,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -844,6 +858,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -871,6 +886,7 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_counter_col <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
