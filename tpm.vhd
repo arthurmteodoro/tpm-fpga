@@ -335,7 +335,7 @@ begin
                 for j in 0 to N-1 loop
                     h(counter) := resize((h(counter) + tpm_w(counter, j) * tpm_x(counter, j)), 32);
                 end loop;
-                tpm_o(counter) <= sign(h(counter));
+                tpm_o(counter) <= sign(h);
             end if;
         end if;
     end process;
