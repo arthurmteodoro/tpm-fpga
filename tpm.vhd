@@ -118,7 +118,7 @@ architecture behavior of tpm is
     signal load_seed_for_lfsr : std_logic;
     signal seed_for_lfsr : std_logic_vector(31 downto 0);
     signal enable_for_lfsr : std_logic;
-    signal lfsr_random_number : std_logic_vector(7 downto 0);
+    signal lfsr_random_number : std_logic_vector(31 downto 0);
     
     -- sinais para serem utilizados nos lfsrs de 32 bits
     signal load_seed_for_lfsr32 : vector_of_std_logic(K-1 downto 0);
@@ -146,6 +146,9 @@ architecture behavior of tpm is
     signal enable_load_y_bob : std_logic;
     signal enable_update_w : std_logic;
     signal enable_clip_w : std_logic;
+	 
+	 signal enable_exit_x : std_logic;
+	 signal enable_exit_o : std_logic;
     
     -- sinais para contadores
     signal counter_i : integer range 0 to K-1;
@@ -156,7 +159,9 @@ architecture behavior of tpm is
     -- DEFINICAO DOS TIPOS E SINAIS PARA A MAQUINA DE ESTADOS                                  --
     ---------------------------------------------------------------------------------------------
     type state is (idle, load_seed, load_seed_comp, generate_w, generate_new_input_x, load_x, calc_o, calc_y, exit_w, 
-                   load_bob_y, update_w, update_clip_w, exit_y, load_seed_x, load_seed_comp_x);
+                   load_bob_y, update_w, update_clip_w, exit_y, load_seed_x, load_seed_comp_x,
+                   
+                   exit_x, exit_o);
     
     signal this_state : state;
     signal next_state : state;
@@ -254,13 +259,13 @@ begin
                 if(tpm_y = tpm_y_bob) then -- caso os valores de saida sejam iguais
                     for i in 0 to K-1 loop
                         for j in 0 to N-1 loop
-                            if(tpm_y * tpm_o(i) <= 0) then -- caso a multiplicacao de menor ou igual a zero, o peso se mantem
+                            if(tpm_y /= tpm_o(i)) then -- caso a multiplicacao de menor ou igual a zero, o peso se mantem
                                 w(i, j) := tpm_w(i, j);
                             else
                                 if(RULE = "hebbian") then -- acplica a regra determinada
                                     w(i, j) := resize((tpm_w(i, j) + (tpm_x(i, j) * tpm_y)), 8);
                                 elsif(RULE = "anti_hebbian") then
-                                    w(i, j) := resize((tpm_w(i, j) - (tpm_x(i, j) * tpm_o(i))), 8);
+                                    w(i, j) := resize((tpm_w(i, j) - (tpm_x(i, j) * tpm_y)), 8);
                                 elsif(RULE = "random_walk") then
                                     w(i, j) := resize((tpm_w(i, j) + tpm_x(i, j)), 8);
                                 end if;
@@ -375,6 +380,10 @@ begin
                 avs_readdata <= std_logic_vector(resize(tpm_w(counter_i, counter_j), 32));
             elsif(enable_exit_y = '1') then
                 avs_readdata <= std_logic_vector(resize(tpm_y, 32));
+            elsif(enable_exit_x = '1') then
+                avs_readdata <= std_logic_vector(resize(tpm_x(counter_i, counter_j), 32));
+            elsif(enable_exit_o = '1') then
+                avs_readdata <= std_logic_vector(resize(tpm_o(counter), 32));
             end if;
         end if;
     end process;
@@ -383,7 +392,7 @@ begin
     -- PROCESSOS DA MAQUINA DE ESTADOS                                                          --
     ---------------------------------------------------------------------------------------------
     
-    comb_fsm : process(this_state, avs_write, avs_address, counter_i, counter_j, counter)
+    comb_fsm : process(this_state, avs_write, avs_read, avs_address, counter_i, counter_j, counter)
     begin
         case this_state is
             when idle =>
@@ -403,6 +412,9 @@ begin
                 enable_update_w <= '0';
                 enable_clip_w <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -441,6 +453,14 @@ begin
                             enable_exit_w <= '1';
                             enable_counter <= '1';
                             next_state <= exit_w;
+                        when "00010011" =>
+                            enable_exit_x <= '1';
+                            enable_counter <= '1';
+                            next_state <= exit_x;
+                        when "00010100" =>
+                            enable_exit_o <= '1';
+                            enable_counter_simple <= '1';
+                            next_state <= exit_x;
                         when others =>
                             next_state <= idle;
                     end case;
@@ -467,6 +487,9 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -495,6 +518,9 @@ begin
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
                 
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
+                
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
@@ -521,6 +547,9 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '1';
+                
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -549,6 +578,9 @@ begin
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
                 
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
+                
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
@@ -576,6 +608,9 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -608,6 +643,9 @@ begin
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
                 
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
+                
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '1';
                     load_seed_for_lfsr32(i) <= '0';
@@ -635,6 +673,9 @@ begin
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
                 
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
+                
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
@@ -661,6 +702,9 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -693,6 +737,9 @@ begin
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
                 
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
+                
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
@@ -719,6 +766,9 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '1';
                 enable_load_seed_lfsr32 <= '0';
+                
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -747,6 +797,9 @@ begin
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
                 
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
+                
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
@@ -773,6 +826,9 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -801,6 +857,9 @@ begin
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
                 
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
+                
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
@@ -828,6 +887,39 @@ begin
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
                 
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
+                
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
+                next_state <= idle;
+                
+            when exit_x =>
+                busy <= '1';
+                load_seed_for_lfsr <= '0';
+                enable_for_lfsr <= '0';
+                enable_load_seed_lfsr <= '0';
+                enable_generate_w <= '0';
+                enable_counter <= '0';
+                enable_load_x <= '0';
+                enable_calc_o <= '0';
+                clear_h <= '0';
+                clear_y <= '0';
+                enable_calc_y <= '0';
+                enable_counter_simple <= '0';
+                enable_load_y_bob <= '0';
+                enable_update_w <= '0';
+                enable_clip_w <= '0';
+                enable_exit_w <= '0';
+                enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
+                
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
+                
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
                     load_seed_for_lfsr32(i) <= '0';
@@ -854,6 +946,9 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -889,15 +984,14 @@ begin
     ---------------------------------------------------------------------------------------------
     -- INSTANCIACAO DOS COMPONENTES UTILIZADOS                                                 --
     ---------------------------------------------------------------------------------------------
-    lfsr1 : lfsr generic map (G_M => 8, G_POLY => "10111000")
-    port map(
-        i_clk => clk,
-        i_rstb => reset,
-        i_sync_reset => load_seed_for_lfsr,
-        i_seed => seed_for_lfsr(7 downto 0),
-        i_en => enable_for_lfsr,
-        o_lsfr => lfsr_random_number
-    );
+    lfsr1 : lfsr32 port map (
+        clk => clk,
+        rst => reset,
+        enable => enable_for_lfsr,
+        load_seed => load_seed_for_lfsr,
+        seed => seed_for_lfsr,
+        lfsr_o => lfsr_random_number
+        );
     
     -- instanciacao dos lfsr32
     gen_lfsr32: for i in 0 to K-1 generate
