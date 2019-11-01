@@ -14,7 +14,7 @@ use ieee.math_real.all;
 
 entity tpm is generic(
     K : natural := 3; -- quantidade de neuronios da camada escondida
-    N : natural := 4; -- quantidade de neuronios de entrada para cada neuronio da camada de entrada
+    N : natural := 20; -- quantidade de neuronios de entrada para cada neuronio da camada de entrada
     L : natural := 5; -- valor limite para os pesos dos neuronios (-L ate L)
     RULE : string := "hebbian"
 ); port (
@@ -62,7 +62,7 @@ architecture behavior of tpm is
     -- -1 para valores menores que 0, 1 para maior ou igual a 0
     function sign(a : signed) return signed is
     begin
-        if(a >= 0) then
+        if(a > 0) then
             return to_signed(1, 8);
         else
             return to_signed((-1), 8);
@@ -72,18 +72,6 @@ architecture behavior of tpm is
     ---------------------------------------------------------------------------------------------
     -- COMPONENTES                                                                             --
     ---------------------------------------------------------------------------------------------
-    component lfsr is generic(
-        G_M : integer := 7;
-        G_POLY : std_logic_vector := "1100000"); -- x^7+x^6+1 
-    port(
-        i_clk : in std_logic;
-        i_rstb : in std_logic;
-        i_sync_reset : in std_logic;
-        i_seed : in std_logic_vector(G_M-1 downto 0);
-        i_en : in std_logic;
-        o_lsfr : out std_logic_vector(G_M-1 downto 0)
-    );
-    end component;
     
     component lfsr32 is port(
         clk: in std_logic;
@@ -259,9 +247,7 @@ begin
                 if(tpm_y = tpm_y_bob) then -- caso os valores de saida sejam iguais
                     for i in 0 to K-1 loop
                         for j in 0 to N-1 loop
-                            if(tpm_y /= tpm_o(i)) then -- caso a multiplicacao de menor ou igual a zero, o peso se mantem
-                                w(i, j) := tpm_w(i, j);
-                            else
+                            if(tpm_y = tpm_o(i)) then -- caso a multiplicacao de menor ou igual a zero, o peso se mantem
                                 if(RULE = "hebbian") then -- acplica a regra determinada
                                     w(i, j) := resize((tpm_w(i, j) + (tpm_x(i, j) * tpm_y)), 8);
                                 elsif(RULE = "anti_hebbian") then
@@ -269,6 +255,8 @@ begin
                                 elsif(RULE = "random_walk") then
                                     w(i, j) := resize((tpm_w(i, j) + tpm_x(i, j)), 8);
                                 end if;
+                            else
+                                w(i, j) := tpm_w(i, j);
                             end if;
                         end loop;
                     end loop;
@@ -313,10 +301,11 @@ begin
     end process;
     
     -- processo para calcular os valores de sigma
-    tpm_output_calc_o : process(clk, reset, clear_h)
-        variable h : signed(7 downto 0);
+    tpm_output_calc_o : process(clk, reset)
+        variable h : signed(31 downto 0);
+        variable i : integer;
     begin
-        if((reset = '1') or (clear_h = '1')) then
+        if(reset = '1') then
             for i in 0 to K-1 loop
                 tpm_o(i) <= (others => '0');
             end loop;
@@ -324,8 +313,8 @@ begin
         elsif(rising_edge(clk)) then
             if(enable_calc_o = '1') then
                 h := (others => '0');
-                for j in 0 to N-1 loop
-                    h := resize((h + tpm_w(counter, j) * tpm_x(counter, j)), 8);
+                for i in 0 to N-1 loop
+                    h := h + tpm_w(counter, i) * tpm_x(counter, i);
                 end loop;
                 tpm_o(counter) <= sign(h);
             end if;
@@ -333,20 +322,20 @@ begin
     end process;
     
     -- processo para calcular o valor de y da tpm
-    tpm_calc_y : process(clk, reset, clear_y)
-        variable y : signed(7 downto 0) := "00000001";
+    tpm_calc_y : process(clk, reset)
+        variable y : integer := 1;
         variable i : integer;
     begin
-        if((reset = '1') or (clear_y = '1')) then
-                tpm_y <= "00000001";
-                y := "00000001";
+        if(reset = '1') then
+                tpm_y <= to_signed(1, 8);
+                y := 1;
         elsif(rising_edge(clk)) then
             if(enable_calc_y = '1') then
-                y := "00000001";
+                y := 1;
                 for i in 0 to K-1 loop
-                    y := resize((y * tpm_o(i)), 8);
+                    y := y * to_integer(tpm_o(i));
                 end loop;
-                tpm_y <= y;
+                tpm_y <= to_signed(y, 8);
             end if;
         end if;
     end process;
@@ -460,7 +449,7 @@ begin
                         when "00010100" =>
                             enable_exit_o <= '1';
                             enable_counter_simple <= '1';
-                            next_state <= exit_x;
+                            next_state <= exit_o;
                         when others =>
                             next_state <= idle;
                     end case;

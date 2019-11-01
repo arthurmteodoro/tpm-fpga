@@ -18,7 +18,7 @@ architecture tb of tpm_tb is
 
     component tpm is generic(
         K : natural := 3; -- quantidade de neuronios da camada escondida
-        N : natural := 4; -- quantidade de neuronios de entrada para cada neuronio da camada de entrada
+        N : natural := 20; -- quantidade de neuronios de entrada para cada neuronio da camada de entrada
         L : natural := 5; -- valor limite para os pesos dos neuronios (-L ate L)
         RULE : string := "hebbian"
     ); port (
@@ -43,11 +43,22 @@ architecture tb of tpm_tb is
     signal data_in : std_logic_vector(31 downto 0);
     signal data_out : std_logic_vector(31 downto 0);
 
-    constant clk_period : time := 20 ns; 
+    constant clk_period : time := 20 ns;
+
+    constant K : integer := 3;
+    constant N : integer := 20;
+    constant L : integer := 5;
+    constant RULE : string := "hebbian";
 
 begin
     
-    uut : tpm port map (
+    uut : tpm generic map (
+        K => K,
+        N => N,
+        L => L,
+        RULE => RULE
+    )
+    port map (
         clk => clk,
         reset => rst,
         avs_address => address,
@@ -85,8 +96,7 @@ begin
         -- manda carregar a semente
         report "Carregando a semente para geração dos pesos";
         address <= "00000001";
-        data_in <= (31 downto 8 => '0') & "01001101"; -- resultado da 1
-        -- data_in <= (31 downto 8 => '0') & "01011101"; -- resultado da -1
+        data_in <= x"63deaf49";
         write_req <= '1';
 
         wait for clk_period;
@@ -106,12 +116,12 @@ begin
         data_in <= (others => '0');
         write_req <= '0';
 
-        wait for clk_period*30;
+        wait for clk_period*70;
         
         -- manda carregar a semente do primeiro LFSR
         report "Carregando a semente para o primeiro LFSR";
         address <= "10000000";
-        data_in <= x"12345678";
+        data_in <= x"65f332fb";
         write_req <= '1';
 
         wait for clk_period;
@@ -129,7 +139,7 @@ begin
         -- manda carregar a semente do segundo LFSR
         report "Carregando a semente para o segundo LFSR";
         address <= "10000000";
-        data_in <= x"2458AD16";
+        data_in <= x"2cf377c2";
         write_req <= '1';
 
         wait for clk_period;
@@ -147,7 +157,7 @@ begin
         -- manda carregar a semente do terceiro LFSR
         report "Carregando a semente para o terceiro LFSR";
         address <= "10000000";
-        data_in <= x"792ABF19";
+        data_in <= x"19fc3f1b";
         write_req <= '1';
 
         wait for clk_period;
@@ -187,6 +197,25 @@ begin
 
         wait for clk_period*30;
 
+        report "lendo o valor de o";
+        for i in 0 to K-1 loop
+            address <= "00010100";
+            read_req <= '1';
+
+            wait for clk_period*2;
+
+            address <= (others => '0');
+            read_req <= '0';
+
+            wait for clk_period*3;
+        end loop;
+
+        address <= (others => '0');
+        data_in <= (others => '0');
+        write_req <= '0';
+
+        wait for clk_period*20;
+
         -- manda ler o valor de y
         report "Lendo valor de y"; 
         address <= "00010001";
@@ -200,8 +229,27 @@ begin
         wait for clk_period*30;
 
         report "lendo o valor de w";
-        for i in 0 to 11 loop
+        for i in 0 to (K*N)-1 loop
             address <= "00010010";
+            read_req <= '1';
+
+            wait for clk_period*2;
+
+            address <= (others => '0');
+            read_req <= '0';
+
+            wait for clk_period*3;
+        end loop;
+
+        address <= (others => '0');
+        data_in <= (others => '0');
+        write_req <= '0';
+
+        wait for clk_period*20;
+
+        report "lendo o valor de x";
+        for i in 0 to (K*N)-1 loop
+            address <= "00010011";
             read_req <= '1';
 
             wait for clk_period*2;
@@ -221,8 +269,8 @@ begin
         report "Carregando o Y de Bob";
         address <= "00000101";
         write_req <= '1';
-        data_in <= (31 downto 8 => '0') & "00000001"; -- resultado da 1
-        --data_in <= (31 downto 8 => '0') & "11111111"; -- resultado da -1
+        --data_in <= (31 downto 0 => '1');
+        data_in <= (31 downto 1 => '0')  & '1';
 
         wait for clk_period;
 
@@ -249,7 +297,7 @@ begin
         wait for clk_period*30;
 
         report "lendo o valor de w";
-        for i in 0 to 11 loop
+        for i in 0 to (K*N)-1 loop
             address <= "00010010";
             read_req <= '1';
 
@@ -260,6 +308,83 @@ begin
 
             wait for clk_period*3;
         end loop;
+
+        wait for clk_period*30;
+
+        -- manda gerar o valor de X
+        report "Gerando o valor de X";
+        address <= "00000011";
+        write_req <= '1';
+
+        wait for clk_period;
+
+        address <= (others => '0');
+        data_in <= (others => '0');
+        write_req <= '0';
+
+        wait for clk_period*30;
+
+        -- manda gerar a saida
+        report "Gerando a saída";
+        address <= "00000100";
+        write_req <= '1';
+        wait for clk_period;
+
+        address <= (others => '0');
+        data_in <= (others => '0');
+        write_req <= '0';
+
+        wait for clk_period*30;
+
+        report "lendo o valor de o";
+        for i in 0 to K-1 loop
+            address <= "00010100";
+            read_req <= '1';
+
+            wait for clk_period*2;
+
+            address <= (others => '0');
+            read_req <= '0';
+
+            wait for clk_period*3;
+        end loop;
+
+        address <= (others => '0');
+        data_in <= (others => '0');
+        write_req <= '0';
+
+        wait for clk_period*20;
+
+        -- manda ler o valor de y
+        report "Lendo valor de y"; 
+        address <= "00010001";
+        read_req <= '1';
+
+        wait for clk_period*2;
+
+        address <= (others => '0');
+        read_req <= '0';
+
+        wait for clk_period*30;
+
+        report "lendo o valor de w";
+        for i in 0 to (K*N)-1 loop
+            address <= "00010010";
+            read_req <= '1';
+
+            wait for clk_period*2;
+
+            address <= (others => '0');
+            read_req <= '0';
+
+            wait for clk_period*3;
+        end loop;
+
+        address <= (others => '0');
+        data_in <= (others => '0');
+        write_req <= '0';
+
+        wait for clk_period*20;
 
         wait;
     end process;
