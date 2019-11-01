@@ -60,7 +60,7 @@ architecture behavior of tpm is
 
     -- funcao sinal do valor do peso
     -- -1 para valores menores que 0, 1 para maior ou igual a 0
-    function sign(a : signed) return signed is
+    function sign(a : integer) return signed is
     begin
         if(a > 0) then
             return to_signed(1, 8);
@@ -149,7 +149,9 @@ architecture behavior of tpm is
     type state is (idle, load_seed, load_seed_comp, generate_w, generate_new_input_x, load_x, calc_o, calc_y, exit_w, 
                    load_bob_y, update_w, update_clip_w, exit_y, load_seed_x, load_seed_comp_x,
                    
-                   exit_x, exit_o);
+                   exit_x, exit_o,
+                   
+                   calc_o_dummy, dummy_2);
     
     signal this_state : state;
     signal next_state : state;
@@ -302,21 +304,21 @@ begin
     
     -- processo para calcular os valores de sigma
     tpm_output_calc_o : process(clk, reset)
-        variable h : signed(31 downto 0);
+        variable h : integer;
         variable i : integer;
     begin
         if(reset = '1') then
             for i in 0 to K-1 loop
                 tpm_o(i) <= (others => '0');
             end loop;
-            h := (others => '0');
+            h := 0;
         elsif(rising_edge(clk)) then
             if(enable_calc_o = '1') then
-                h := (others => '0');
+                h := 0;
                 for i in 0 to N-1 loop
-                    h := h + tpm_w(counter, i) * tpm_x(counter, i);
+                    h := h + to_integer(tpm_w(counter, i) * tpm_x(counter, i));-- * tpm_x(counter, i);
                 end loop;
-                tpm_o(counter) <= sign(h);
+                tpm_o(counter) <= sign(h);--to_signed(h, 8);--resize(h, 8);--sign(h);
             end if;
         end if;
     end process;
@@ -681,6 +683,42 @@ begin
                 enable_counter <= '0';
                 enable_load_x <= '0';
                 enable_calc_o <= '1';
+                clear_h <= '0';
+                clear_y <= '0';
+                enable_calc_y <= '0';
+                --enable_counter_simple <= '1';
+                enable_counter_simple <= '0';
+                enable_load_y_bob <= '0';
+                enable_update_w <= '0';
+                enable_clip_w <= '0';
+                enable_exit_w <= '0';
+                enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
+                
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
+                
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
+                --if(counter = K-1) then
+                --    next_state <= calc_y;
+                --else
+                --    next_state <= calc_o;
+                --end if;
+                next_state <= calc_o_dummy;
+                
+            when calc_o_dummy =>
+                busy <= '1';
+                load_seed_for_lfsr <= '0';
+                enable_for_lfsr <= '0';
+                enable_load_seed_lfsr <= '0';
+                enable_generate_w <= '0';
+                enable_counter <= '0';
+                enable_load_x <= '0';
+                enable_calc_o <= '0';
                 clear_h <= '0';
                 clear_y <= '0';
                 enable_calc_y <= '0';

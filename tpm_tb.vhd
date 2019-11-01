@@ -96,7 +96,7 @@ begin
         -- manda carregar a semente
         report "Carregando a semente para geração dos pesos";
         address <= "00000001";
-        data_in <= x"63deaf49";
+        data_in <= x"0b71e8d7";
         write_req <= '1';
 
         wait for clk_period;
@@ -121,7 +121,7 @@ begin
         -- manda carregar a semente do primeiro LFSR
         report "Carregando a semente para o primeiro LFSR";
         address <= "10000000";
-        data_in <= x"65f332fb";
+        data_in <= x"50eaaf61";
         write_req <= '1';
 
         wait for clk_period;
@@ -139,7 +139,7 @@ begin
         -- manda carregar a semente do segundo LFSR
         report "Carregando a semente para o segundo LFSR";
         address <= "10000000";
-        data_in <= x"2cf377c2";
+        data_in <= x"1782b0b9";
         write_req <= '1';
 
         wait for clk_period;
@@ -157,7 +157,7 @@ begin
         -- manda carregar a semente do terceiro LFSR
         report "Carregando a semente para o terceiro LFSR";
         address <= "10000000";
-        data_in <= x"19fc3f1b";
+        data_in <= x"0242f806";
         write_req <= '1';
 
         wait for clk_period;
@@ -269,8 +269,8 @@ begin
         report "Carregando o Y de Bob";
         address <= "00000101";
         write_req <= '1';
-        --data_in <= (31 downto 0 => '1');
-        data_in <= (31 downto 1 => '0')  & '1';
+        data_in <= (31 downto 0 => '1');
+        --data_in <= (31 downto 1 => '0')  & '1';
 
         wait for clk_period;
 
