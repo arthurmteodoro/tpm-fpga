@@ -14,7 +14,7 @@ use ieee.math_real.all;
 
 entity tpm is generic(
     K : natural := 3; -- quantidade de neuronios da camada escondida
-    N : natural := 4; -- quantidade de neuronios de entrada para cada neuronio da camada de entrada
+    N : natural := 20; -- quantidade de neuronios de entrada para cada neuronio da camada de entrada
     L : natural := 5; -- valor limite para os pesos dos neuronios (-L ate L)
     RULE : string := "hebbian"
 ); port (
@@ -60,7 +60,7 @@ architecture behavior of tpm is
 
     -- funcao sinal do valor do peso
     -- -1 para valores menores que 0, 1 para maior ou igual a 0
-    function sign(a : integer) return signed is
+    function sign(a : signed) return signed is
     begin
         if(a > 0) then
             return to_signed(1, 8);
@@ -98,6 +98,7 @@ architecture behavior of tpm is
     -- sinais de registradores
     signal tpm_w : matrix_of_byte(K-1 downto 0, N-1 downto 0);
     signal tpm_x : matrix_of_byte(K-1 downto 0, N-1 downto 0);
+    signal tpm_h : vector_of_byte(K-1 downto 0);
     signal tpm_o : vector_of_byte(K-1 downto 0);
     signal tpm_y : signed(7 downto 0);
     signal tpm_y_bob : signed(7 downto 0);
@@ -122,7 +123,7 @@ architecture behavior of tpm is
     signal enable_load_seed_lfsr32 : std_logic;
     signal enable_load_seed_lfsr : std_logic;
     signal enable_generate_w : std_logic;
-    signal enable_counter, enable_counter_process : std_logic;
+    signal enable_counter, enable_counter_process, enable_counter_col : std_logic;
     signal enable_load_x : std_logic;
     signal enable_calc_o : std_logic;
     signal clear_h : std_logic;
@@ -135,6 +136,7 @@ architecture behavior of tpm is
     signal enable_update_w : std_logic;
     signal enable_clip_w : std_logic;
 	 
+     signal enable_calc_h : std_logic;
 	 signal enable_exit_x : std_logic;
 	 signal enable_exit_o : std_logic;
     
@@ -142,11 +144,12 @@ architecture behavior of tpm is
     signal counter_i : integer range 0 to K-1;
     signal counter_j : integer range 0 to N-1;
     signal counter : integer range 0 to K-1;
+    signal counter_col : integer range 0 to N-1;
     
     ---------------------------------------------------------------------------------------------
     -- DEFINICAO DOS TIPOS E SINAIS PARA A MAQUINA DE ESTADOS                                  --
     ---------------------------------------------------------------------------------------------
-    type state is (idle, load_seed, load_seed_comp, generate_w, generate_new_input_x, load_x, calc_o, calc_o_dummy,
+    type state is (idle, load_seed, load_seed_comp, generate_w, generate_new_input_x, load_x, calc_h, calc_o, calc_o_dummy,
                    calc_y, exit_w,load_bob_y, update_w, update_clip_w, exit_y, load_seed_x, load_seed_comp_x, 
                    exit_x, exit_o);
     
@@ -219,6 +222,21 @@ begin
                     counter <= 0;
                 else
                     counter <= counter + 1;
+                end if;
+            end if;
+        end if;
+    end process;
+    
+    tpm_counter_col : process(clk, reset)
+    begin
+        if (reset = '1') then
+            counter_col <= 0;
+        elsif(rising_edge(clk)) then
+            if (enable_counter_col = '1') then
+                if (counter_col = N-1) then
+                    counter_col <= 0;
+                else
+                    counter_col <= counter_col + 1;
                 end if;
             end if;
         end if;
@@ -297,22 +315,27 @@ begin
     
     -- processo para calcular os valores de sigma
     tpm_output_calc_o : process(clk, reset)
-        variable h : integer;
+        variable h : vector_of_byte(K-1 downto 0);
         variable i : integer;
     begin
         if(reset = '1') then
             for i in 0 to K-1 loop
                 tpm_o(i) <= (others => '0');
+                h(i) := (others => '0');
             end loop;
-            h := 0;
         elsif(rising_edge(clk)) then
             if (clear_h = '1') then
-                h := 0;
-            elsif(enable_calc_o = '1') then
-                for i in 0 to N-1 loop
-                    h := h + to_integer(tpm_w(counter, i) * tpm_x(counter, i));
+                for i in 0 to K-1 loop
+                    h(i) := (others => '0');
                 end loop;
-                tpm_o(counter) <= sign(h);
+            elsif(enable_calc_h = '1') then
+                for i in 0 to K-1 loop
+                    h(i) := h(i) + to_integer(tpm_w(i, counter_col) * tpm_x(i, counter_col));
+                end loop;
+            elsif(enable_calc_o = '1') then
+                for i in 0 to K-1 loop
+                    tpm_o(i) <= sign(h(i));
+                end loop;
             end if;
         end if;
     end process;
@@ -377,7 +400,7 @@ begin
     -- PROCESSOS DA MAQUINA DE ESTADOS                                                          --
     ---------------------------------------------------------------------------------------------
     
-    comb_fsm : process(this_state, avs_write, avs_read, avs_address, counter_i, counter_j, counter)
+    comb_fsm : process(this_state, avs_write, avs_read, avs_address, counter_i, counter_j, counter, counter_col)
     begin
         case this_state is
             when idle =>
@@ -400,6 +423,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -419,7 +444,7 @@ begin
                             next_state <= generate_new_input_x;
                         when "00000100" =>
                             clear_h <= '1';
-                            next_state <= calc_o;
+                            next_state <= calc_h;
                         when "00000101" =>
                             next_state <= load_bob_y;
                         when "00000110" =>
@@ -475,6 +500,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -505,6 +532,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -535,6 +564,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -565,6 +596,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -596,6 +629,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -630,6 +665,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '1';
@@ -660,6 +697,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -667,7 +706,43 @@ begin
                 end loop;
                 
                 next_state <= idle;
+            
+            when calc_h =>
+                busy <= '1';
+                load_seed_for_lfsr <= '0';
+                enable_for_lfsr <= '0';
+                enable_load_seed_lfsr <= '0';
+                enable_generate_w <= '0';
+                enable_counter <= '0';
+                enable_load_x <= '0';
+                enable_calc_o <= '0';
+                clear_h <= '0';
+                clear_y <= '0';
+                enable_calc_y <= '0';
+                enable_counter_simple <= '0';
+                enable_load_y_bob <= '0';
+                enable_update_w <= '0';
+                enable_clip_w <= '0';
+                enable_exit_w <= '0';
+                enable_exit_y <= '0';
+                enable_load_seed_lfsr32 <= '0';
                 
+                enable_exit_x <= '0';
+                enable_exit_o <= '0';
+                enable_counter_col <= '1';
+                enable_calc_h <= '1';
+                
+                for i in 0 to K-1 loop
+                    enable_for_lfsr32(i) <= '0';
+                    load_seed_for_lfsr32(i) <= '0';
+                end loop;
+                
+                if (counter_col = N-1) then
+                    next_state <= calc_o;
+                else
+                    next_state <= calc_h;
+                end if;
+        
             when calc_o =>
                 busy <= '1';
                 load_seed_for_lfsr <= '0';
@@ -691,6 +766,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -702,7 +779,7 @@ begin
                 --else
                 --    next_state <= calc_o;
                 --end if;
-                next_state <= calc_o_dummy;
+                next_state <= calc_y;
                 
             when calc_o_dummy =>
                 busy <= '1';
@@ -723,9 +800,12 @@ begin
                 enable_exit_w <= '0';
                 enable_exit_y <= '0';
                 enable_load_seed_lfsr32 <= '0';
+                enable_calc_h <= '0';
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -760,6 +840,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -790,6 +872,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -820,6 +904,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -850,6 +936,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -880,6 +968,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -910,6 +1000,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -940,6 +1032,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';
@@ -970,6 +1064,8 @@ begin
                 
                 enable_exit_x <= '0';
                 enable_exit_o <= '0';
+                enable_counter_col <= '0';
+                enable_calc_h <= '0';
                 
                 for i in 0 to K-1 loop
                     enable_for_lfsr32(i) <= '0';

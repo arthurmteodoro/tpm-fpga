@@ -18,7 +18,7 @@ architecture tb of tpm_tb is
 
     component tpm is generic(
         K : natural := 3; -- quantidade de neuronios da camada escondida
-        N : natural := 4; -- quantidade de neuronios de entrada para cada neuronio da camada de entrada
+        N : natural := 20; -- quantidade de neuronios de entrada para cada neuronio da camada de entrada
         L : natural := 5; -- valor limite para os pesos dos neuronios (-L ate L)
         RULE : string := "hebbian"
     ); port (
@@ -46,7 +46,7 @@ architecture tb of tpm_tb is
     constant clk_period : time := 20 ns;
 
     constant K : integer := 3;
-    constant N : integer := 4;
+    constant N : integer := 20;
     constant L : integer := 5;
     constant RULE : string := "hebbian";
 
