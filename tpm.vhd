@@ -14,7 +14,7 @@ use ieee.math_real.all;
 
 entity tpm is generic(
     K : natural := 3; -- quantidade de neuronios da camada escondida
-    N : natural := 20; -- quantidade de neuronios de entrada para cada neuronio da camada de entrada
+    N : natural := 4; -- quantidade de neuronios de entrada para cada neuronio da camada de entrada
     L : natural := 5; -- valor limite para os pesos dos neuronios (-L ate L)
     RULE : string := "hebbian"
 ); port (
@@ -146,18 +146,12 @@ architecture behavior of tpm is
     ---------------------------------------------------------------------------------------------
     -- DEFINICAO DOS TIPOS E SINAIS PARA A MAQUINA DE ESTADOS                                  --
     ---------------------------------------------------------------------------------------------
-    type state is (idle, load_seed, load_seed_comp, generate_w, generate_new_input_x, load_x, calc_o, calc_y, exit_w, 
-                   load_bob_y, update_w, update_clip_w, exit_y, load_seed_x, load_seed_comp_x,
-                   
-                   exit_x, exit_o,
-                   
-                   calc_o_dummy, dummy_2);
+    type state is (idle, load_seed, load_seed_comp, generate_w, generate_new_input_x, load_x, calc_o, calc_o_dummy,
+                   calc_y, exit_w,load_bob_y, update_w, update_clip_w, exit_y, load_seed_x, load_seed_comp_x, 
+                   exit_x, exit_o);
     
     signal this_state : state;
     signal next_state : state;
-    
-    constant max_value : signed(7 downto 0) := to_signed(L, 8);
-    constant min_value : signed(7 downto 0) := to_signed(-L, 8);
     
 begin
 
@@ -288,7 +282,6 @@ begin
                 end loop;
         elsif(rising_edge(clk)) then
             if(enable_load_x = '1') then
-                --tpm_x(counter_i, counter_j) <= signed(avs_writedata(7 downto 0));
                 for i in 0 to K-1 loop
                     for j in 0 to N-1 loop
                         if (lfsr32_random_number(i)(j) = '1') then
@@ -313,12 +306,13 @@ begin
             end loop;
             h := 0;
         elsif(rising_edge(clk)) then
-            if(enable_calc_o = '1') then
+            if (clear_h = '1') then
                 h := 0;
+            elsif(enable_calc_o = '1') then
                 for i in 0 to N-1 loop
-                    h := h + to_integer(tpm_w(counter, i) * tpm_x(counter, i));-- * tpm_x(counter, i);
+                    h := h + to_integer(tpm_w(counter, i) * tpm_x(counter, i));
                 end loop;
-                tpm_o(counter) <= sign(h);--to_signed(h, 8);--resize(h, 8);--sign(h);
+                tpm_o(counter) <= sign(h);
             end if;
         end if;
     end process;
@@ -719,7 +713,7 @@ begin
                 enable_counter <= '0';
                 enable_load_x <= '0';
                 enable_calc_o <= '0';
-                clear_h <= '0';
+                clear_h <= '1';
                 clear_y <= '0';
                 enable_calc_y <= '0';
                 enable_counter_simple <= '1';

@@ -18,7 +18,7 @@ architecture tb of tpm_tb is
 
     component tpm is generic(
         K : natural := 3; -- quantidade de neuronios da camada escondida
-        N : natural := 20; -- quantidade de neuronios de entrada para cada neuronio da camada de entrada
+        N : natural := 4; -- quantidade de neuronios de entrada para cada neuronio da camada de entrada
         L : natural := 5; -- valor limite para os pesos dos neuronios (-L ate L)
         RULE : string := "hebbian"
     ); port (
@@ -46,7 +46,7 @@ architecture tb of tpm_tb is
     constant clk_period : time := 20 ns;
 
     constant K : integer := 3;
-    constant N : integer := 20;
+    constant N : integer := 4;
     constant L : integer := 5;
     constant RULE : string := "hebbian";
 
@@ -247,30 +247,11 @@ begin
 
         wait for clk_period*20;
 
-        report "lendo o valor de x";
-        for i in 0 to (K*N)-1 loop
-            address <= "00010011";
-            read_req <= '1';
-
-            wait for clk_period*2;
-
-            address <= (others => '0');
-            read_req <= '0';
-
-            wait for clk_period*3;
-        end loop;
-
-        address <= (others => '0');
-        data_in <= (others => '0');
-        write_req <= '0';
-
-        wait for clk_period*20;
-
         report "Carregando o Y de Bob";
         address <= "00000101";
         write_req <= '1';
-        data_in <= (31 downto 0 => '1');
-        --data_in <= (31 downto 1 => '0')  & '1';
+        --data_in <= (31 downto 0 => '1');
+        data_in <= (31 downto 1 => '0')  & '1';
 
         wait for clk_period;
 
